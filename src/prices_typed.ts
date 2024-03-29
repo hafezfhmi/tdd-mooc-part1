@@ -89,7 +89,7 @@ function createApp(database: Database) {
 
   function calculateReduction(date: Date | undefined, date2: Temporal.PlainDate | undefined) {
     let reduction = 0;
-    if (date && date2 && isMonday(date2) && !isHoliday(date, date2)) {
+    if (date && date2 && isMonday(date2) && !isHoliday(date2)) {
       reduction = 35;
     }
     return reduction;
@@ -99,21 +99,11 @@ function createApp(database: Database) {
     return date2.dayOfWeek === 1;
   }
 
-  function isHoliday(date: Date | undefined, date2: Temporal.PlainDate | undefined) {
+  function isHoliday(date2: Temporal.PlainDate | undefined) {
     const holidays = database.getHolidays();
     for (let row of holidays) {
-      let holiday = new Date(row.holiday);
       let holiday2 = Temporal.PlainDate.from(row.holiday);
-      if (
-        date &&
-        date2 &&
-        date2.year === holiday2.year &&
-        date2.month === holiday2.month &&
-        date2.day === holiday2.day &&
-        date.getFullYear() === holiday.getFullYear() &&
-        date.getMonth() === holiday.getMonth() &&
-        date.getDate() === holiday.getDate()
-      ) {
+      if (date2 && date2.year === holiday2.year && date2.month === holiday2.month && date2.day === holiday2.day) {
         return true;
       }
     }
