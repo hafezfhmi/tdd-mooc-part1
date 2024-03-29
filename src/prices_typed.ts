@@ -1,6 +1,7 @@
 import "./polyfills";
 import express from "express";
 import { Database } from "./database";
+import { Temporal } from "@js-temporal/polyfill";
 
 // Refactor the following code to get rid of the legacy Date class.
 // Use Temporal.PlainDate instead. See /test/date_conversion.spec.mjs for examples.
@@ -20,21 +21,26 @@ function createApp(database: Database) {
     const type = req.query.type as string;
     const baseCost = database.findBasePriceByType(type)!.cost;
     const date = parseDate(req.query.date as string);
-    const cost = calculateCost(age, type, date, baseCost);
+    const cost = calculateCost(age, type, baseCost, date);
     res.json({ cost });
   });
 
-  function parseDate(dateString: string | undefined): Date | undefined {
+  function parseDate(dateString: string | undefined): Temporal.PlainDate | undefined {
     if (dateString) {
-      return new Date(dateString);
+      return Temporal.PlainDate.from(dateString);
     }
   }
 
-  function calculateCost(age: number | undefined, type: string, date: Date | undefined, baseCost: number) {
+  function calculateCost(
+    age: number | undefined,
+    type: string,
+    baseCost: number,
+    date: Temporal.PlainDate | undefined,
+  ) {
     if (type === "night") {
       return calculateCostForNightTicket(age, baseCost);
     } else {
-      return calculateCostForDayTicket(age, date, baseCost);
+      return calculateCostForDayTicket(age, baseCost, date);
     }
   }
 
@@ -51,7 +57,7 @@ function createApp(database: Database) {
     return baseCost;
   }
 
-  function calculateCostForDayTicket(age: number | undefined, date: Date | undefined, baseCost: number) {
+  function calculateCostForDayTicket(age: number | undefined, baseCost: number, date: Temporal.PlainDate | undefined) {
     let reduction = calculateReduction(date);
     if (age === undefined) {
       return Math.ceil(baseCost * (1 - reduction / 100));
@@ -68,7 +74,7 @@ function createApp(database: Database) {
     return Math.ceil(baseCost * (1 - reduction / 100));
   }
 
-  function calculateReduction(date: Date | undefined) {
+  function calculateReduction(date: Temporal.PlainDate | undefined) {
     let reduction = 0;
     if (date && isMonday(date) && !isHoliday(date)) {
       reduction = 35;
@@ -76,20 +82,15 @@ function createApp(database: Database) {
     return reduction;
   }
 
-  function isMonday(date: Date) {
-    return date.getDay() === 1;
+  function isMonday(date: Temporal.PlainDate) {
+    return date.dayOfWeek === 1;
   }
 
-  function isHoliday(date: Date | undefined) {
+  function isHoliday(date: Temporal.PlainDate | undefined) {
     const holidays = database.getHolidays();
     for (let row of holidays) {
-      let holiday = new Date(row.holiday);
-      if (
-        date &&
-        date.getFullYear() === holiday.getFullYear() &&
-        date.getMonth() === holiday.getMonth() &&
-        date.getDate() === holiday.getDate()
-      ) {
+      let holiday = Temporal.PlainDate.from(row.holiday);
+      if (date && date.equals(holiday)) {
         return true;
       }
     }
